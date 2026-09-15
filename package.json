@@ -6,6 +6,14 @@
   "main": "out/main/index.js",
   "author": "Onur Tekik",
   "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iamonur/auction-assistant.git"
+  },
+  "bugs": {
+    "url": "https://github.com/iamonur/auction-assistant/issues"
+  },
+  "homepage": "https://github.com/iamonur/auction-assistant#readme",
   "private": true,
   "type": "module",
   "scripts": {
