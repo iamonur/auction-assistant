@@ -37,22 +37,27 @@ export default function ZoneValuePage(): React.JSX.Element {
   const { data, loading, error, reload } = useAsyncData(() => window.api.zoneValue.list(), [])
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
+  const [showContinentFallback, setShowContinentFallback] = useState(false)
   const [sortKey, setSortKey] = useState<SortKey>('avgMobValue')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
-  const { rows, totalMatching } = useMemo(() => {
-    if (!data) return { rows: [] as ZoneValueRow[], totalMatching: 0 }
+  const { rows, totalMatching, hiddenFallbackCount } = useMemo(() => {
+    if (!data) return { rows: [] as ZoneValueRow[], totalMatching: 0, hiddenFallbackCount: 0 }
     let filtered = data
     if (typeFilter !== 'all') filtered = filtered.filter((row) => row.zoneType === typeFilter)
     if (search.trim()) {
       const needle = search.trim().toLowerCase()
       filtered = filtered.filter((row) => row.zoneName.toLowerCase().includes(needle))
     }
+    const hiddenFallbackCount = showContinentFallback
+      ? 0
+      : filtered.filter((row) => row.isContinentFallback).length
+    if (!showContinentFallback) filtered = filtered.filter((row) => !row.isContinentFallback)
     const accessor = SORT_ACCESSORS[sortKey]
     const sorted = [...filtered].sort((a, b) => accessor(a) - accessor(b))
     const ordered = sortDir === 'asc' ? sorted : sorted.reverse()
-    return { rows: ordered.slice(0, MAX_ROWS_SHOWN), totalMatching: ordered.length }
-  }, [data, typeFilter, search, sortKey, sortDir])
+    return { rows: ordered.slice(0, MAX_ROWS_SHOWN), totalMatching: ordered.length, hiddenFallbackCount }
+  }, [data, typeFilter, search, showContinentFallback, sortKey, sortDir])
 
   const toggleSort = (key: SortKey): void => {
     if (key === sortKey) {
@@ -89,12 +94,25 @@ export default function ZoneValuePage(): React.JSX.Element {
             />
           ))}
         </div>
+
+        <label className="ml-auto flex items-center gap-2 text-xs text-zinc-500">
+          <input
+            type="checkbox"
+            checked={showContinentFallback}
+            onChange={(event) => setShowContinentFallback(event.target.checked)}
+            className="h-3.5 w-3.5 rounded border-surface-border bg-surface-panel accent-gold"
+          />
+          Show continent-wide rows
+        </label>
       </div>
 
       <div className="flex-1 overflow-auto px-6 py-4">
         {loading && <LoadingState label="Computing zone values…" />}
         {error && <ErrorState message={error} />}
-        {!loading && !error && rows.length === 0 && (
+        {!loading && !error && rows.length === 0 && hiddenFallbackCount > 0 && (
+          <EmptyState message={`Only ${hiddenFallbackCount} continent-wide row${hiddenFallbackCount === 1 ? '' : 's'} match — check "Show continent-wide rows" above to see them.`} />
+        )}
+        {!loading && !error && rows.length === 0 && hiddenFallbackCount === 0 && (
           <EmptyState message="No zone data yet. Sync AH data, then check back — this needs both the world-data import and priced items." />
         )}
 
@@ -103,6 +121,13 @@ export default function ZoneValuePage(): React.JSX.Element {
             <p className="text-xs text-zinc-600">
               Showing {rows.length.toLocaleString()} of {totalMatching.toLocaleString()} matching zones
               {totalMatching > MAX_ROWS_SHOWN ? ' — refine your search to see more.' : ''}
+              {hiddenFallbackCount > 0 && (
+                <>
+                  {' '}
+                  · {hiddenFallbackCount} continent-wide row{hiddenFallbackCount === 1 ? '' : 's'} hidden (creatures
+                  the world-data import couldn&apos;t resolve past their continent — check the box above to see them)
+                </>
+              )}
             </p>
             <div className="panel overflow-hidden">
               <table className="w-full border-collapse text-sm">
@@ -133,7 +158,17 @@ export default function ZoneValuePage(): React.JSX.Element {
                       key={row.zoneName}
                       className="border-b border-surface-border/60 last:border-0 hover:bg-surface-raised/50"
                     >
-                      <td className="px-4 py-3 font-medium text-zinc-200">{row.zoneName}</td>
+                      <td className="px-4 py-3 font-medium text-zinc-200">
+                        {row.zoneName}
+                        {row.isContinentFallback && (
+                          <span
+                            className="ml-2 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-500"
+                            title="Creatures the world-data import couldn't resolve past their continent — a whole-continent average, not a specific zone."
+                          >
+                            continent-wide
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <ZoneTypeBadge zoneType={row.zoneType} />
                       </td>

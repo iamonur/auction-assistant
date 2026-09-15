@@ -53,4 +53,4 @@ export function closeDb(): void {
   dbInstanceVersion = null
 }
 
-export { aggregateSnapshot, ingestDailyPriceRows } from './aggregate'
+export { aggregateSnapshot, ingestAhScanRows, ingestDailyPriceRows } from './aggregate'

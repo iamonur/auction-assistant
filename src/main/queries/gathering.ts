@@ -59,6 +59,60 @@ export function listGatheringRows(db: Database.Database, settings: AppSettings):
   })
 }
 
+interface NodeSpawnRow {
+  nodeName: string
+  itemId: number
+}
+
+export interface GatheringNodeValueRow {
+  nodeName: string
+  itemId: number
+  itemName: string
+  value: number | null
+}
+
+/**
+ * Per-node value, keyed by the gathering node's own real display name
+ * (gathering_node_spawns.node_name — resolved at import time from the
+ * world database, not derived here), for the addon's gathering-node
+ * tooltip. Distinct from listGatheringRows above, which is per-item (the
+ * resource itself) for the desktop Gathering Profitability tab — a herb
+ * node's display name isn't always the same as the item it yields
+ * (mining nodes especially: "Copper Vein" node -> "Copper Ore" item), so
+ * matching by node name here avoids needing to guess at that mapping in
+ * the addon itself.
+ */
+export function listGatheringNodeValueRows(db: Database.Database, settings: AppSettings): GatheringNodeValueRow[] {
+  const rows = db
+    .prepare(
+      /* sql */ `
+      SELECT DISTINCT node_name as nodeName, item_id as itemId
+      FROM gathering_node_spawns
+    `
+    )
+    .all() as NodeSpawnRow[]
+
+  const priceMap = getCheapestPriceMap(db, settings)
+  const volumeMap = getSupplyVolumeMap(db, settings)
+  const itemNames = new Map(
+    (db.prepare('SELECT id, name FROM items').all() as { id: number; name: string }[]).map((row) => [
+      row.id,
+      row.name
+    ])
+  )
+
+  return rows.map((row) => {
+    const volume = volumeMap.get(row.itemId) ?? 0
+    const price = priceMap.get(row.itemId)
+    return {
+      nodeName: row.nodeName,
+      itemId: row.itemId,
+      itemName: itemNames.get(row.itemId) ?? `Item #${row.itemId}`,
+      value: volume > 0 && price !== undefined ? price : null
+    } satisfies GatheringNodeValueRow
+  })
+}
+
 function computeTrend(history: HistoryRow[]): GatheringItemRow['trend7d'] {
   if (history.length < 2) return 'unknown'
   const first = history[0].avgPrice

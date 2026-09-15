@@ -23,6 +23,7 @@ export function testSettings(overrides: Partial<AppSettings> = {}): AppSettings 
     tsmRealmSlug: 'test-realm',
     lastSyncAt: null,
     onboardingDismissed: true,
+    wowFlavorPath: '',
     ...overrides
   }
 }

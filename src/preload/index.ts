@@ -6,9 +6,11 @@ import type {
   CraftingSnipeRow,
   DungeonEntryInput,
   DungeonRunWithValue,
+  ExportPricesResult,
   FarmingRouteResult,
   GameVersion,
   GatheringItemRow,
+  ImportAhScanResult,
   ItemDetail,
   InstanceZoneOption,
   ItemSearchResult,
@@ -85,6 +87,12 @@ const api = {
     listInstanceZones: (): Promise<InstanceZoneOption[]> => ipcRenderer.invoke(IPC.DUNGEON_LIST_INSTANCE_ZONES),
     importFromZone: (mapId: number, zoneName: string): Promise<DungeonRunWithValue> =>
       ipcRenderer.invoke(IPC.DUNGEON_IMPORT_FROM_ZONE, mapId, zoneName)
+  },
+  addon: {
+    pickWowFolder: (): Promise<string | null> => ipcRenderer.invoke(IPC.ADDON_PICK_WOW_FOLDER),
+    exportPrices: (): Promise<ExportPricesResult> => ipcRenderer.invoke(IPC.ADDON_EXPORT_PRICES),
+    checkWowRunning: (): Promise<boolean> => ipcRenderer.invoke(IPC.ADDON_CHECK_WOW_RUNNING),
+    importAhScan: (): Promise<ImportAhScanResult> => ipcRenderer.invoke(IPC.ADDON_IMPORT_AH_SCAN)
   }
 }
 

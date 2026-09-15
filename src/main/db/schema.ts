@@ -83,6 +83,25 @@ CREATE TABLE IF NOT EXISTS item_price_stats (
 CREATE INDEX IF NOT EXISTS idx_item_price_stats_item_date ON item_price_stats(item_id, date);
 CREATE INDEX IF NOT EXISTS idx_item_price_stats_realm ON item_price_stats(region, realm);
 
+-- Live-ish pricing straight from the player's own realm, imported from the
+-- WoW addon's in-game AH scan (see main/addon/ahScanImport.ts). Deliberately
+-- separate from item_price_stats, not another row in it: this has no daily
+-- cadence (a scan happens whenever the player opens the AH, not once a day)
+-- and no rolling 7d/30d history — it's a single "latest known" row per item,
+-- preferred over item_price_stats when fresh enough and left alone (not
+-- merged into it) when it isn't. See queries/shared.ts for the precedence
+-- rule every feature actually reads through.
+CREATE TABLE IF NOT EXISTS ah_scan_price_stats (
+  item_id       INTEGER NOT NULL,
+  region        TEXT NOT NULL,
+  realm         TEXT NOT NULL,
+  price         INTEGER NOT NULL,
+  volume        INTEGER NOT NULL,
+  scanned_at    TEXT NOT NULL,
+  PRIMARY KEY (item_id, region, realm)
+);
+CREATE INDEX IF NOT EXISTS idx_ah_scan_price_stats_realm ON ah_scan_price_stats(region, realm);
+
 -- Supports the "Farming Route Helper" module. Not part of the AH pipeline;
 -- populated from seed data / user-curated community knowledge.
 CREATE TABLE IF NOT EXISTS farming_spots (

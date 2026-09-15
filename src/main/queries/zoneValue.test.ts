@@ -78,4 +78,23 @@ describe('listZoneValueRows', () => {
     const rows = listZoneValueRows(db, testSettings({ region: REGION, realmName: REALM }))
     expect(rows.map((r) => r.zoneName)).toEqual(['High Value Zone', 'Low Value Zone'])
   })
+
+  // A creature the world-database import couldn't resolve past its
+  // continent lands in a row named for that continent — real data, but a
+  // whole-continent average, not a useful zone the way the rest of this
+  // list is. Callers (the desktop UI, the addon export) need to be able
+  // to tell the two apart rather than treating "Eastern Kingdoms" as if
+  // it were a farming/questing zone on equal footing with "Elwynn Forest".
+  it('flags the five continent-name rows as isContinentFallback, and nothing else', () => {
+    seedCreature(db, 1, 401, 100, 'Eastern Kingdoms', 0, 5) // unresolved fallback
+    seedCreature(db, 2, 402, 200, 'Elwynn Forest', 0, 5) // real sub-zone, same continent's map id
+    seedCreature(db, 3, 403, 300, 'Some Unrelated Zone', 99, 5)
+
+    const rows = listZoneValueRows(db, testSettings({ region: REGION, realmName: REALM }))
+    const byName = new Map(rows.map((r) => [r.zoneName, r]))
+
+    expect(byName.get('Eastern Kingdoms')?.isContinentFallback).toBe(true)
+    expect(byName.get('Elwynn Forest')?.isContinentFallback).toBe(false)
+    expect(byName.get('Some Unrelated Zone')?.isContinentFallback).toBe(false)
+  })
 })

@@ -315,6 +315,20 @@ export interface ZoneValueRow {
   avgMobValue: number
   mobCount: number
   totalSpawns: number
+  /**
+   * True for the handful of open-world rows keyed by a whole continent's
+   * name (Eastern Kingdoms, Kalimdor, Outland, Northrend, Pandaria)
+   * rather than a real sub-zone. The world-database import can only
+   * resolve a creature down to its continent by default — sub-zone
+   * resolution is an additive enrichment step (pfQuest's coordinate
+   * database) that only covers Vanilla + TBC content, so every
+   * Wrath/Cataclysm/MoP-only creature (and any Vanilla/TBC one pfQuest
+   * doesn't track) still lands in one of these five catch-all rows. Real,
+   * not fabricated — but genuinely one continent-wide average, not a
+   * useful farming/questing zone the way the rest of this list is. See
+   * queries/zoneValue.ts.
+   */
+  isContinentFallback: boolean
 }
 
 export interface MarketAnomalyRow {
@@ -432,10 +446,36 @@ export interface AppSettings {
 
   /** True once the user has synced or explicitly skipped first-run onboarding for this game version. See components/FirstRunModal.tsx. */
   onboardingDismissed: boolean
+
+  /**
+   * The folder containing this game version's WoW client — i.e. the one
+   * with Interface/ and WTF/ directly inside it (typically named
+   * `_retail_`, `_classic_`, or `_classic_era_` inside the Battle.net
+   * install root, but never assumed — the user points at it directly via
+   * a folder picker in Settings, since exact folder names aren't something
+   * to guess at when getting it wrong means silently writing nowhere).
+   * Used by the WoW addon companion sync — see main/addon/export.ts.
+   */
+  wowFlavorPath: string
 }
 
 export interface ApiTestResult {
   success: boolean
   message: string
   listingsImported?: number
+}
+
+/** Result of exporting a price snapshot into the WoW addon companion's SavedVariables — see main/addon/export.ts. */
+export interface ExportPricesResult {
+  success: boolean
+  message: string
+  itemCount?: number
+}
+
+/** Result of importing the addon's in-game AH scan results — see main/addon/ahScanImport.ts. */
+export interface ImportAhScanResult {
+  success: boolean
+  message: string
+  itemCount?: number
+  scannedAt?: string
 }

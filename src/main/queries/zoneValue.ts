@@ -11,6 +11,15 @@ interface ZoneSpawnRow {
 }
 
 /**
+ * The only zone names the import's baseline continent-level resolution
+ * ever produces for an open-world creature — see
+ * scripts/data-extraction/extract-mob-zones.js's own CONTINENTS map,
+ * which this mirrors exactly. Anything else under zoneType 'open_world'
+ * came from real sub-zone resolution (pfQuest), not this fallback.
+ */
+const CONTINENT_FALLBACK_NAMES = new Set(['Eastern Kingdoms', 'Kalimdor', 'Outland', 'Northrend', 'Pandaria'])
+
+/**
  * Average Expected Value (see mobValue.ts) across every distinct mob known
  * to spawn in each zone — a simple average over mobs, not spawn-weighted,
  * so a zone densely packed with one common mob doesn't drown out its
@@ -67,7 +76,8 @@ export function listZoneValueRows(db: Database.Database, settings: AppSettings):
     zoneType: zone.zoneType,
     avgMobValue: zone.mobIds.size > 0 ? Math.round(zone.valueSum / zone.mobIds.size) : 0,
     mobCount: zone.mobIds.size,
-    totalSpawns: zone.totalSpawns
+    totalSpawns: zone.totalSpawns,
+    isContinentFallback: zone.zoneType === 'open_world' && CONTINENT_FALLBACK_NAMES.has(zoneName)
   }))
 
   return rows.sort((a, b) => b.avgMobValue - a.avgMobValue)

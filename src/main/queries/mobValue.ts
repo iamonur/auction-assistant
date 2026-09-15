@@ -117,6 +117,49 @@ export function getMobExpectedValueMap(db: Database.Database, settings: AppSetti
   return new Map([...values].map(([creatureId, value]) => [creatureId, value.expectedValue]))
 }
 
+interface SkinningDropRow {
+  creatureId: number
+  itemId: number
+  chancePercent: number
+}
+
+/**
+ * Expected skinning value per creature: sum of chance% x current price
+ * across its skinning loot table (skinning_drops), same liquidity gate as
+ * everywhere else (an item with zero current volume is excluded). Kept
+ * entirely separate from computeExpectedValues/getMobExpectedValueMap
+ * above — skinning is a distinct, optional action the player may or may
+ * not take, not part of a mob's general kill value, so it shouldn't
+ * silently change what "Expected Value" means everywhere else in the app
+ * (Zone Value averages, Dungeon Selecting totals, ...). Used only by the
+ * addon's skinning-value tooltip line — see main/addon/export.ts.
+ */
+export function getSkinningExpectedValueMap(db: Database.Database, settings: AppSettings): Map<number, number> {
+  const dropRows = db
+    .prepare(
+      /* sql */ `
+      SELECT creature_id as creatureId, item_id as itemId, chance_percent as chancePercent
+      FROM skinning_drops
+    `
+    )
+    .all() as SkinningDropRow[]
+
+  const priceMap = getCheapestPriceMap(db, settings)
+  const volumeMap = getSupplyVolumeMap(db, settings)
+
+  const rawTotals = new Map<number, number>()
+  for (const drop of dropRows) {
+    const volume = volumeMap.get(drop.itemId) ?? 0
+    const price = priceMap.get(drop.itemId)
+    if (volume === 0 || price === undefined) continue
+
+    const value = (drop.chancePercent / 100) * price
+    rawTotals.set(drop.creatureId, (rawTotals.get(drop.creatureId) ?? 0) + value)
+  }
+
+  return new Map([...rawTotals].map(([creatureId, total]) => [creatureId, Math.round(total)]))
+}
+
 export function listMobValueRows(db: Database.Database, settings: AppSettings): MobValueRow[] {
   const catalog = db
     .prepare(

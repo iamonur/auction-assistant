@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type Database from 'better-sqlite3'
 import { createTestDb } from '@test/db'
-import { ingestDailyPriceRows, ingestPetPriceRows } from './aggregate'
+import { ingestAhScanRows, ingestDailyPriceRows, ingestPetPriceRows } from './aggregate'
 
 describe('ingestDailyPriceRows', () => {
   let db: Database.Database
@@ -87,5 +87,44 @@ describe('ingestPetPriceRows', () => {
       .prepare('SELECT avg_price as avgPrice, volume FROM pet_price_stats WHERE pet_species_id = 99')
       .get()
     expect(row).toEqual({ avgPrice: 500, volume: 3 })
+  })
+})
+
+describe('ingestAhScanRows', () => {
+  let db: Database.Database
+
+  beforeEach(() => {
+    db = createTestDb()
+  })
+
+  afterEach(() => {
+    db.close()
+  })
+
+  it('upserts one row per item, keyed by (item, region, realm) — no per-day history', () => {
+    ingestAhScanRows(db, [{ itemId: 1, price: 100, volume: 5 }], 'us', 'test-realm', '2026-01-01T12:00:00Z')
+    ingestAhScanRows(db, [{ itemId: 1, price: 150, volume: 8 }], 'us', 'test-realm', '2026-01-01T13:00:00Z')
+
+    const rows = db.prepare('SELECT price, volume, scanned_at as scannedAt FROM ah_scan_price_stats WHERE item_id = 1').all()
+    expect(rows).toEqual([{ price: 150, volume: 8, scannedAt: '2026-01-01T13:00:00Z' }])
+  })
+
+  it('leaves items from a previous scan untouched when a newer scan only covers a subset', () => {
+    ingestAhScanRows(
+      db,
+      [
+        { itemId: 1, price: 100, volume: 5 },
+        { itemId: 2, price: 200, volume: 3 }
+      ],
+      'us',
+      'test-realm',
+      '2026-01-01T00:00:00Z'
+    )
+
+    // A later scan only got through item 1 before the player closed the AH.
+    ingestAhScanRows(db, [{ itemId: 1, price: 90, volume: 6 }], 'us', 'test-realm', '2026-01-02T00:00:00Z')
+
+    const item2 = db.prepare('SELECT price, scanned_at as scannedAt FROM ah_scan_price_stats WHERE item_id = 2').get()
+    expect(item2).toEqual({ price: 200, scannedAt: '2026-01-01T00:00:00Z' })
   })
 })

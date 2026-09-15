@@ -1,6 +1,7 @@
 import { useAsyncData } from '../hooks/useAsyncData'
 import { LoadingState } from '../components/StateViews'
 import PricingSetupForm from '../components/PricingSetupForm'
+import AddonSyncSection from '../components/AddonSyncSection'
 import { GAME_VERSION_LABELS } from '@shared/gameVersions'
 
 export default function SettingsPage(): React.JSX.Element {
@@ -28,8 +29,9 @@ export default function SettingsPage(): React.JSX.Element {
       </header>
 
       <div className="flex-1 overflow-auto px-6 py-6">
-        <div className="max-w-xl">
+        <div className="max-w-xl space-y-6">
           <PricingSetupForm />
+          <AddonSyncSection />
         </div>
       </div>
     </div>

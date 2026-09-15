@@ -24,6 +24,12 @@ export const IPC = {
   // Global search palette (Cmd+K)
   MOB_SEARCH: 'mob-value:search',
 
+  // WoW addon companion sync
+  ADDON_PICK_WOW_FOLDER: 'addon:pick-wow-folder',
+  ADDON_EXPORT_PRICES: 'addon:export-prices',
+  ADDON_CHECK_WOW_RUNNING: 'addon:check-wow-running',
+  ADDON_IMPORT_AH_SCAN: 'addon:import-ah-scan',
+
   // Crafting Sniper
   CRAFTING_LIST: 'crafting:list',
 

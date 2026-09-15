@@ -21,7 +21,8 @@ function defaultSettingsFor(_gameVersion: GameVersion): AppSettings {
     tsmRealmSlug: '',
 
     lastSyncAt: null,
-    onboardingDismissed: false
+    onboardingDismissed: false,
+    wowFlavorPath: ''
   }
 }
 

@@ -1,0 +1,13 @@
+## Interface: 50504
+## Title: Auction Assistant
+## Notes: Companion addon for the Crafting & Auction Assistant desktop app. Shows the app's last-synced item prices on tooltips, zone values on the world map, mob/skinning values on unit tooltips, and gathering node values on herb/ore tooltips. Scans the Auction House on request (/aascan).
+## Author: Onur Tekik
+## Version: 0.1.0
+## SavedVariables: AuctionAssistantPrices, AuctionAssistantScan
+
+Core.lua
+Tooltip.lua
+ZoneHover.lua
+MobTooltip.lua
+GatherTooltip_Legacy.lua
+AHScan_ModernAH.lua

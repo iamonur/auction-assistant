@@ -1,10 +1,20 @@
-import { ipcMain } from 'electron'
+import { dialog, ipcMain } from 'electron'
 import { IPC } from '@shared/ipcChannels'
-import type { ApiTestResult, AppSettings, DungeonEntryInput, GameVersion, Profession } from '@shared/types'
+import type {
+  ApiTestResult,
+  AppSettings,
+  DungeonEntryInput,
+  ExportPricesResult,
+  GameVersion,
+  ImportAhScanResult,
+  Profession
+} from '@shared/types'
 import { getDb } from './db'
 import { getActiveGameVersion, getAppSettings, setActiveGameVersion, setAppSettings } from './store'
 import { runAhSync, testConnection as testBattleNetConnection } from './battlenet/sync'
 import { runTsmSync, testTsmConnection } from './tsm/sync'
+import { exportPricesToAddon, isWowLikelyRunning } from './addon/export'
+import { importAhScanFromAddon } from './addon/ahScanImport'
 import { searchItems } from './queries/items'
 import { getItemDetail } from './queries/itemDetail'
 import { listCraftingSnipeRows } from './queries/crafting'
@@ -142,4 +152,22 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC.DUNGEON_IMPORT_FROM_ZONE, (_event, mapId: number, zoneName: string) =>
     importDungeonFromZone(activeDb(), activeSettings(), mapId, zoneName)
   )
+
+  ipcMain.handle(IPC.ADDON_PICK_WOW_FOLDER, async (): Promise<string | null> => {
+    const result = await dialog.showOpenDialog({
+      title: 'Select your WoW installation folder (the one containing Interface/ and WTF/)',
+      properties: ['openDirectory']
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+    return result.filePaths[0]
+  })
+
+  ipcMain.handle(IPC.ADDON_EXPORT_PRICES, (): ExportPricesResult => {
+    const gameVersion = getActiveGameVersion()
+    return exportPricesToAddon(activeDb(), activeSettings(), gameVersion)
+  })
+
+  ipcMain.handle(IPC.ADDON_CHECK_WOW_RUNNING, (): Promise<boolean> => isWowLikelyRunning())
+
+  ipcMain.handle(IPC.ADDON_IMPORT_AH_SCAN, (): ImportAhScanResult => importAhScanFromAddon(activeDb(), activeSettings()))
 }

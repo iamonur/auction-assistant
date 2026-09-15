@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type Database from 'better-sqlite3'
 import { createTestDb, testSettings } from '@test/db'
-import { getMobDropTable, listMobValueRows, searchMobs } from './mobValue'
+import { getMobDropTable, getSkinningExpectedValueMap, listMobValueRows, searchMobs } from './mobValue'
 
 const REGION = 'us'
 const REALM = 'test-realm'
@@ -100,6 +100,51 @@ describe('getMobDropTable', () => {
 
     const liquid = entries.find((e) => e.itemId === 101)
     expect(liquid?.price).toBe(1000)
+  })
+})
+
+describe('getSkinningExpectedValueMap', () => {
+  let db: Database.Database
+
+  beforeEach(() => {
+    db = createTestDb()
+    seedMob(db)
+  })
+
+  afterEach(() => {
+    db.close()
+  })
+
+  it('is independent of mob_loot Expected Value — skinning-only, liquidity-gated', () => {
+    db.prepare(
+      `INSERT INTO skinning_drops (creature_id, creature_name, item_id, chance_percent, spawn_count) VALUES (1, 'Test Mob', 101, 100, 5)`
+    ).run()
+    // A second, illiquid skinning drop — must be excluded, same rule as mob_loot.
+    db.prepare(
+      `INSERT INTO skinning_drops (creature_id, creature_name, item_id, chance_percent, spawn_count) VALUES (1, 'Test Mob', 103, 100, 5)`
+    ).run()
+
+    const map = getSkinningExpectedValueMap(db, testSettings({ region: REGION, realmName: REALM }))
+    // item 101: 100% chance * 1000 price = 1000. item 103 excluded (illiquid).
+    expect(map.get(1)).toBe(1000)
+  })
+
+  it('sums multiple skinning drops for the same creature', () => {
+    db.prepare(
+      `INSERT INTO skinning_drops (creature_id, creature_name, item_id, chance_percent, spawn_count) VALUES (1, 'Test Mob', 101, 50, 5)`
+    ).run()
+    db.prepare(
+      `INSERT INTO skinning_drops (creature_id, creature_name, item_id, chance_percent, spawn_count) VALUES (1, 'Test Mob', 102, 25, 5)`
+    ).run()
+
+    const map = getSkinningExpectedValueMap(db, testSettings({ region: REGION, realmName: REALM }))
+    // item 101: 0.5 * 1000 = 500. item 102: 0.25 * 500 = 125. total = 625.
+    expect(map.get(1)).toBe(625)
+  })
+
+  it('returns an empty map when there are no skinning drops at all', () => {
+    const map = getSkinningExpectedValueMap(db, testSettings({ region: REGION, realmName: REALM }))
+    expect(map.size).toBe(0)
   })
 })
 

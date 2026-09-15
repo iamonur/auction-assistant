@@ -168,6 +168,47 @@ export function ingestPetPriceRows(db: Database.Database, rows: PetPriceRow[], r
   runIngestion(rows)
 }
 
+export interface AhScanRow {
+  itemId: number
+  price: number
+  volume: number
+}
+
+/**
+ * Upserts the addon's in-game AH scan results — one row per item, no
+ * history, no rolling stats (see ah_scan_price_stats in db/schema.ts).
+ * Only the given items are touched; anything scanned previously but not
+ * in this run is left as-is and simply ages out of the freshness window
+ * in queries/shared.ts's resolver rather than being deleted here, since a
+ * scan can legitimately cover a subset of items (a watchlist, or however
+ * far the player got before closing the AH window) rather than every
+ * item in the game.
+ */
+export function ingestAhScanRows(
+  db: Database.Database,
+  rows: AhScanRow[],
+  region: string,
+  realm: string,
+  scannedAt: string
+): void {
+  const upsert = db.prepare(/* sql */ `
+    INSERT INTO ah_scan_price_stats (item_id, region, realm, price, volume, scanned_at)
+    VALUES (@itemId, @region, @realm, @price, @volume, @scannedAt)
+    ON CONFLICT(item_id, region, realm) DO UPDATE SET
+      price = excluded.price,
+      volume = excluded.volume,
+      scanned_at = excluded.scanned_at
+  `)
+
+  const runIngestion = db.transaction((scanRows: AhScanRow[]) => {
+    for (const row of scanRows) {
+      upsert.run({ itemId: row.itemId, region, realm, price: row.price, volume: row.volume, scannedAt })
+    }
+  })
+
+  runIngestion(rows)
+}
+
 function mean(values: number[]): number | null {
   if (values.length === 0) return null
   return values.reduce((sum, v) => sum + v, 0) / values.length
