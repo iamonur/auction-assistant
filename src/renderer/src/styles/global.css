@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-surface text-zinc-200 font-body antialiased;
+  }
+
+  ::selection {
+    @apply bg-gold/30 text-white;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-surface-border rounded-full;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply bg-surface-panel border border-surface-border rounded-lg shadow-panel;
+  }
+
+  .rarity-border-0 {
+    @apply border-l-2 border-rarity-poor;
+  }
+  .rarity-border-1 {
+    @apply border-l-2 border-rarity-common;
+  }
+  .rarity-border-2 {
+    @apply border-l-2 border-rarity-uncommon;
+  }
+  .rarity-border-3 {
+    @apply border-l-2 border-rarity-rare;
+  }
+  .rarity-border-4 {
+    @apply border-l-2 border-rarity-epic;
+  }
+  .rarity-border-5 {
+    @apply border-l-2 border-rarity-legendary;
+  }
+
+  .nav-link {
+    @apply flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-surface-raised hover:text-zinc-100;
+  }
+  .nav-link-active {
+    @apply bg-surface-raised text-gold shadow-gold-glow;
+  }
+
+  .input {
+    @apply w-full rounded-md border border-surface-border bg-surface-panel px-3 py-2 text-sm text-zinc-200 focus:border-gold/50 focus:outline-none;
+  }
+}

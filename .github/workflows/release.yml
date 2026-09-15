@@ -1,0 +1,44 @@
+name: Release
+
+# Push a tag like v0.2.0 to build and publish installers for macOS (dmg,
+# x64+arm64), Windows (nsis), and Linux (AppImage) to a GitHub Release in
+# one run. Each OS builds its own native target on its own runner — this is
+# also what handles rebuilding better-sqlite3's native binding per platform
+# (via the postinstall script in package.json), not cross-compilation.
+#
+# Builds are unsigned for now (see electron-builder.yml) — no Apple
+# Developer Program membership or Windows code-signing cert yet. Users will
+# see an OS "unidentified developer" / "unknown publisher" warning on first
+# launch until those are added as secrets here and the `identity: null` /
+# `signAndEditExecutable: false` lines in electron-builder.yml are removed.
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - run: npx electron-builder --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

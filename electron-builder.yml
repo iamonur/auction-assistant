@@ -1,0 +1,46 @@
+appId: com.otekik.wowclassic-crafting-assistant
+productName: WoW Classic Crafting & Auction Assistant
+directories:
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+asarUnpack:
+  - '**/*.node'
+extraResources:
+  - from: resources/mop-import
+    to: mop-import
+  - from: resources/classic-import
+    to: classic-import
+  - from: resources/classic-recipes
+    to: classic-recipes
+# Publishing to GitHub Releases — pairs with electron-updater (see main/index.ts)
+# so existing installs auto-update once a new tag is released. Auth comes from
+# GITHUB_TOKEN in CI (see .github/workflows/release.yml); no config needed here.
+publish:
+  provider: github
+mac:
+  category: public.app-category.utilities
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  # Unsigned for now — no Apple Developer Program membership yet. Gatekeeper
+  # will show an "unidentified developer" warning on first launch until this
+  # is replaced with a real signing identity + notarization (CSC_LINK /
+  # CSC_KEY_PASSWORD + APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID
+  # as CI secrets, then remove the `identity: null` line below).
+  identity: null
+win:
+  target:
+    - nsis
+  # Unsigned for now — no code-signing certificate yet. Windows SmartScreen
+  # will show an "Unknown Publisher" warning until this is replaced with a
+  # real cert (WIN_CSC_LINK / WIN_CSC_KEY_PASSWORD as CI secrets).
+  signAndEditExecutable: false
+linux:
+  target:
+    - AppImage
+  category: Utility
+npmRebuild: true
