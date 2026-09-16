@@ -22,6 +22,8 @@ export function testSettings(overrides: Partial<AppSettings> = {}): AppSettings 
     tsmScope: 'realm',
     tsmRealmSlug: 'test-realm',
     lastSyncAt: null,
+    autoSyncEnabled: false,
+    autoSyncIntervalMinutes: 60,
     onboardingDismissed: true,
     wowFlavorPath: '',
     ...overrides

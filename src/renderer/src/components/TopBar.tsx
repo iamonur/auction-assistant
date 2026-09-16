@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { useAsyncData } from '../hooks/useAsyncData'
 
@@ -7,9 +7,17 @@ interface TopBarProps {
   onSynced?: () => void
 }
 
+/** Polling interval for picking up a scheduled background sync (main/autoSync.ts) that this window didn't itself trigger. */
+const LAST_SYNC_POLL_MS = 60_000
+
 export default function TopBar({ title, onSynced }: TopBarProps): React.JSX.Element {
   const { data: lastSync, reload: reloadLastSync } = useAsyncData(() => window.api.ah.lastSync(), [])
   const [syncing, setSyncing] = useState(false)
+
+  useEffect(() => {
+    const intervalId = setInterval(reloadLastSync, LAST_SYNC_POLL_MS)
+    return () => clearInterval(intervalId)
+  }, [reloadLastSync])
   const [syncMessage, setSyncMessage] = useState<{ text: string; success: boolean } | null>(null)
 
   const handleSync = async (): Promise<void> => {

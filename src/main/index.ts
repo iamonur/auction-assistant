@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { getDb, closeDb } from './db'
 import { registerIpcHandlers } from './ipc'
 import { getActiveGameVersion } from './store'
+import { startAutoSync, stopAutoSync } from './autoSync'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const isMac = process.platform === 'darwin'
@@ -50,6 +51,7 @@ void app.whenReady().then(() => {
   // data on first run) before any renderer can issue an IPC query against it.
   getDb(getActiveGameVersion())
   registerIpcHandlers()
+  startAutoSync()
 
   createMainWindow()
 
@@ -72,5 +74,6 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  stopAutoSync()
   closeDb()
 })
