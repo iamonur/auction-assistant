@@ -11,8 +11,9 @@ import type {
 } from '@shared/types'
 import { getDb } from './db'
 import { getActiveGameVersion, getAppSettings, setActiveGameVersion, setAppSettings } from './store'
-import { runAhSync, testConnection as testBattleNetConnection } from './battlenet/sync'
-import { runTsmSync, testTsmConnection } from './tsm/sync'
+import { syncActiveGameVersion } from './sync'
+import { testConnection as testBattleNetConnection } from './battlenet/sync'
+import { testTsmConnection } from './tsm/sync'
 import { exportPricesToAddon, isWowLikelyRunning } from './addon/export'
 import { importAhScanFromAddon } from './addon/ahScanImport'
 import { searchItems } from './queries/items'
@@ -46,19 +47,6 @@ function activeSettings(): AppSettings {
   return getAppSettings(getActiveGameVersion())
 }
 
-async function syncPricingData(): Promise<ApiTestResult> {
-  const gameVersion = getActiveGameVersion()
-  const settings = getAppSettings(gameVersion)
-  const result =
-    settings.pricingSource === 'battlenet'
-      ? await runAhSync(getDb(gameVersion), settings, gameVersion)
-      : await runTsmSync(getDb(gameVersion), settings, gameVersion)
-  if (result.success) {
-    setAppSettings({ lastSyncAt: new Date().toISOString() }, gameVersion)
-  }
-  return result
-}
-
 async function testPricingConnection(): Promise<ApiTestResult> {
   const gameVersion = getActiveGameVersion()
   const settings = getAppSettings(gameVersion)
@@ -87,7 +75,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.AH_TEST_CONNECTION, async (): Promise<ApiTestResult> => testPricingConnection())
 
-  ipcMain.handle(IPC.AH_FETCH_DATA, async (): Promise<ApiTestResult> => syncPricingData())
+  ipcMain.handle(IPC.AH_FETCH_DATA, async (): Promise<ApiTestResult> => syncActiveGameVersion())
 
   ipcMain.handle(IPC.AH_LAST_SYNC, (): string | null => activeSettings().lastSyncAt)
 

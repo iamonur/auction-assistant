@@ -26,6 +26,7 @@ A desktop app (Electron + React + TypeScript) for market tracking, crafting prof
 - **Dungeon Selecting** — build your own expected-value model for a dungeon run from its loot table, with drop-chance suggestions pulled from real mob data.
 - **Mob Value** — Expected Value per mob (drop-table value × chance, plus average gold), filterable by rank (Normal/Elite/Rare Elite/Boss), with a click-through drop table popup per mob.
 - **Zone Value** — average mob Expected Value per zone/instance, filterable by Open World / Dungeon / Raid.
+- **Leveling Planner** — cheapest-path leveling cost for a profession (Alchemy, Blacksmithing, Engineering, Leatherworking, Tailoring) between two skill levels, with an option to net out proceeds from selling crafted items back to the AH.
 - **Item detail popup** — click any item anywhere in the app to see who drops it, where it's gathered, and what recipes use or produce it.
 
 Two pricing sources, switchable per game version in Settings:

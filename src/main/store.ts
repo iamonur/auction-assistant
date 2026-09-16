@@ -21,6 +21,8 @@ function defaultSettingsFor(_gameVersion: GameVersion): AppSettings {
     tsmRealmSlug: '',
 
     lastSyncAt: null,
+    autoSyncEnabled: false,
+    autoSyncIntervalMinutes: 60,
     onboardingDismissed: false,
     wowFlavorPath: ''
   }

@@ -444,6 +444,11 @@ export interface AppSettings {
 
   lastSyncAt: string | null
 
+  /** When true, main/autoSync.ts periodically re-runs the same sync as the manual "Sync AH Data" button for whichever game version is active, without the user needing to click anything. */
+  autoSyncEnabled: boolean
+  /** Minutes between scheduled syncs once autoSyncEnabled is on. Only read while enabled. */
+  autoSyncIntervalMinutes: number
+
   /** True once the user has synced or explicitly skipped first-run onboarding for this game version. See components/FirstRunModal.tsx. */
   onboardingDismissed: boolean
 
