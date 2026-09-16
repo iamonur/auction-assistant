@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3'
 import type { AppSettings, ItemCategory, ItemDetail, ItemQuality } from '@shared/types'
 import { getItemPriceInfo } from './shared'
+import { createReagentCostResolver } from './reagentCost'
 
 interface ItemRow {
   id: number
@@ -10,6 +11,53 @@ interface ItemRow {
   vendorPrice: number | null
   category: ItemCategory
   isBoe: number
+}
+
+interface CraftedByRow {
+  recipeId: number
+  recipeName: string
+  profession: ItemDetail['craftedBy'][number]['profession']
+  skillLevelReq: number
+  resultQuantity: number
+}
+
+interface RecipeReagentRow {
+  recipeId: number
+  itemId: number
+  itemName: string
+  quantity: number
+  vendorPrice: number | null
+}
+
+/**
+ * Prices each candidate recipe's craft cost with the same buy-vs-craft
+ * chaining as Crafting Sniper and the Leveling Planner (see
+ * main/queries/reagentCost.ts) — built once and reused across every
+ * candidate rather than per-recipe, since it re-reads the whole recipe
+ * graph. Only called when there's actually a recipe to price, since most
+ * items aren't craftable at all.
+ */
+function priceCraftedByRows(db: Database.Database, settings: AppSettings, rows: CraftedByRow[]): ItemDetail['craftedBy'] {
+  if (rows.length === 0) return []
+
+  const resolver = createReagentCostResolver(db, settings)
+  return rows.map((recipe) => {
+    const reagentRows = db
+      .prepare(
+        /* sql */ `
+        SELECT rr.recipe_id as recipeId, rr.item_id as itemId, i.name as itemName, rr.quantity as quantity, i.vendor_price as vendorPrice
+        FROM recipe_reagents rr
+        JOIN items i ON i.id = rr.item_id
+        WHERE rr.recipe_id = ?
+      `
+      )
+      .all(recipe.recipeId) as RecipeReagentRow[]
+
+    const { totalCost } = resolver.priceReagents(reagentRows)
+    const craftCost = totalCost !== null ? totalCost / recipe.resultQuantity : null
+
+    return { ...recipe, craftCost }
+  })
 }
 
 /**
@@ -81,7 +129,7 @@ export function getItemDetail(db: Database.Database, settings: AppSettings, item
     )
     .all(itemId) as ItemDetail['usedInRecipes']
 
-  const craftedBy = db
+  const craftedByRows = db
     .prepare(
       /* sql */ `
       SELECT id as recipeId, name as recipeName, profession,
@@ -90,7 +138,9 @@ export function getItemDetail(db: Database.Database, settings: AppSettings, item
       WHERE result_item_id = ?
     `
     )
-    .all(itemId) as ItemDetail['craftedBy']
+    .all(itemId) as CraftedByRow[]
+
+  const craftedBy = priceCraftedByRows(db, settings, craftedByRows)
 
   const { price, volume } = getItemPriceInfo(db, settings, itemId)
 

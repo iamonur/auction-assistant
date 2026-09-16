@@ -299,6 +299,8 @@ export interface ItemDetailCraftedBy {
   profession: Profession
   skillLevelReq: number
   resultQuantity: number
+  /** Cost to craft one unit via this recipe — same buy-vs-craft chaining as Crafting Sniper/the Leveling Planner (see main/queries/reagentCost.ts). Null when any reagent can't be priced at all. */
+  craftCost: number | null
 }
 
 /**

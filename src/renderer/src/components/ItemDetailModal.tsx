@@ -101,8 +101,13 @@ function ItemDetailBody({ item }: { item: ItemDetail }): React.JSX.Element {
       {item.craftedBy.length > 0 && (
         <Section title="Crafted By">
           <ListTable
-            columns={['Recipe', 'Profession', 'Skill Req']}
-            rows={item.craftedBy.map((recipe) => [recipe.recipeName, recipe.profession, String(recipe.skillLevelReq)])}
+            columns={['Recipe', 'Profession', 'Skill Req', 'Craft Cost']}
+            rows={item.craftedBy.map((recipe) => [
+              recipe.recipeName,
+              recipe.profession,
+              String(recipe.skillLevelReq),
+              recipe.craftCost !== null ? formatCopperAsGold(recipe.craftCost) : 'Missing price data'
+            ])}
           />
         </Section>
       )}
