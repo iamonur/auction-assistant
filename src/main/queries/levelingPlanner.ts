@@ -1,6 +1,14 @@
 import type Database from 'better-sqlite3'
-import type { AppSettings, ItemQuality, LevelingPlanResult, LevelingPlanStep, Profession } from '@shared/types'
-import { AH_CUT_RATE, getCheapestPriceMap, getSupplyVolumeMap } from './shared'
+import type {
+  AppSettings,
+  CraftingReagentSourcing,
+  ItemQuality,
+  LevelingPlanResult,
+  LevelingPlanStep,
+  Profession
+} from '@shared/types'
+import { AH_CUT_RATE, getSupplyVolumeMap } from './shared'
+import { createReagentCostResolver } from './reagentCost'
 
 interface RecipeRow {
   id: number
@@ -14,16 +22,18 @@ interface RecipeRow {
 interface ReagentRow {
   recipeId: number
   itemId: number
+  itemName: string
   quantity: number
   vendorPrice: number | null
 }
 
 interface RecipeCost {
   recipe: RecipeRow
-  /** Sum of reagent costs (AH/TSM price, falling back to vendor price) — null if any reagent has neither. */
+  /** Cheapest known way to source every reagent — buy, or craft from its own cheapest recipe (see main/queries/reagentCost.ts). Null if any reagent can't be priced at all. */
   reagentCost: number | null
   /** Post-AH-cut sale price for the crafted item — only computed when sellToAH is true and the item has real trade volume. */
   salePrice: number | null
+  reagents: CraftingReagentSourcing[]
 }
 
 function netCostOf(rc: RecipeCost): number | null {
@@ -77,7 +87,7 @@ export function getLevelingPlan(
   const reagents = db
     .prepare(
       /* sql */ `
-      SELECT rr.recipe_id as recipeId, rr.item_id as itemId, rr.quantity as quantity, i.vendor_price as vendorPrice
+      SELECT rr.recipe_id as recipeId, rr.item_id as itemId, i.name as itemName, rr.quantity as quantity, i.vendor_price as vendorPrice
       FROM recipe_reagents rr
       JOIN items i ON i.id = rr.item_id
     `
@@ -91,33 +101,27 @@ export function getLevelingPlan(
     reagentsByRecipe.set(reagent.recipeId, list)
   }
 
-  const priceMap = getCheapestPriceMap(db, settings)
   const volumeMap = getSupplyVolumeMap(db, settings)
+  // Chains into any reagent that's itself craftable (e.g. a potion
+  // needing a lower-tier potion as a reagent) — see
+  // main/queries/reagentCost.ts, shared with Crafting Sniper so a
+  // reagent prices the same way in both.
+  const resolver = createReagentCostResolver(db, settings)
 
   const recipeCosts: RecipeCost[] = recipes.map((recipe) => {
     const recipeReagents = reagentsByRecipe.get(recipe.id) ?? []
-    let reagentCost = 0
-    let allPriced = recipeReagents.length > 0
-
-    for (const reagent of recipeReagents) {
-      const price = priceMap.get(reagent.itemId) ?? reagent.vendorPrice
-      if (price === null || price === undefined) {
-        allPriced = false
-        continue
-      }
-      reagentCost += price * reagent.quantity
-    }
+    const { reagents: reagentSourcing, totalCost } = resolver.priceReagents(recipeReagents)
 
     let salePrice: number | null = null
     if (sellToAH) {
       const volume = volumeMap.get(recipe.resultItemId) ?? 0
-      const rawPrice = priceMap.get(recipe.resultItemId)
+      const rawPrice = resolver.priceMap.get(recipe.resultItemId)
       if (volume > 0 && rawPrice !== undefined) {
         salePrice = Math.round(rawPrice * (1 - AH_CUT_RATE))
       }
     }
 
-    return { recipe, reagentCost: allPriced ? reagentCost : null, salePrice }
+    return { recipe, reagentCost: totalCost, salePrice, reagents: reagentSourcing }
   })
 
   const tierMap = new Map<number, RecipeCost[]>()
@@ -147,7 +151,8 @@ export function getLevelingPlan(
       reagentCost: null,
       salePrice: null,
       netCostPerCraft: null,
-      subtotal: null
+      subtotal: null,
+      reagents: []
     })
   }
 
@@ -174,7 +179,8 @@ export function getLevelingPlan(
       reagentCost: chosen.reagentCost,
       salePrice: chosen.salePrice,
       netCostPerCraft,
-      subtotal: netCostPerCraft !== null ? netCostPerCraft * craftsNeeded : null
+      subtotal: netCostPerCraft !== null ? netCostPerCraft * craftsNeeded : null,
+      reagents: chosen.reagents
     })
   }
 
