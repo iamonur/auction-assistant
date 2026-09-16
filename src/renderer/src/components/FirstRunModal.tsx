@@ -22,6 +22,12 @@ export default function FirstRunModal({ onDismiss }: FirstRunModalProps): React.
 
         <PricingSetupForm onSynced={onDismiss} />
 
+        <p className="text-xs text-zinc-500">
+          Playing WoW right now? There&apos;s also an optional in-game addon that puts these prices on item, mob, and
+          zone tooltips, and can scan the Auction House for you — set it up anytime in{' '}
+          <span className="text-zinc-400">Settings → WoW Addon Sync</span>.
+        </p>
+
         <button
           type="button"
           onClick={onDismiss}
