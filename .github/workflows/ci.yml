@@ -1,0 +1,35 @@
+name: CI
+
+# Runs on every push/PR against master — typecheck, lint, and the test
+# suite, on the same 3-OS matrix release.yml uses. That matrix isn't
+# overkill here: better-sqlite3's native binding gets rebuilt per platform
+# (via the postinstall script in package.json), so a change that only
+# breaks on, say, Windows would slip through a Linux-only check.
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm run lint
+
+      - run: npm test
