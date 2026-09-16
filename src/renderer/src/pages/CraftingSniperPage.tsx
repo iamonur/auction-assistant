@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { ArrowDown, ArrowUp } from 'lucide-react'
+import { Fragment, useMemo, useState } from 'react'
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, GitMerge } from 'lucide-react'
 import TopBar from '../components/TopBar'
 import FilterChip from '../components/FilterChip'
 import { EmptyState, ErrorState, LoadingState } from '../components/StateViews'
@@ -8,6 +8,8 @@ import { useItemDetailModal } from '../hooks/useItemDetailModal'
 import { formatCopperAsGold } from '../lib/gold'
 import { rarityBorderClass, rarityTextClass } from '../lib/rarity'
 import type { CraftingSnipeRow, Profession } from '@shared/types'
+
+const TABLE_COLUMN_COUNT = 9
 
 const PROFESSIONS: Profession[] = ['Alchemy', 'Blacksmithing', 'Engineering', 'Leatherworking', 'Tailoring']
 
@@ -29,6 +31,7 @@ export default function CraftingSniperPage(): React.JSX.Element {
   const [hideZeroVolume, setHideZeroVolume] = useState(false)
   const [sortKey, setSortKey] = useState<SortKey>('netWithReagent')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [expandedRecipeId, setExpandedRecipeId] = useState<number | null>(null)
 
   const rows = useMemo(() => {
     if (!data) return []
@@ -88,6 +91,7 @@ export default function CraftingSniperPage(): React.JSX.Element {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-surface-border bg-surface-panel text-left text-xs uppercase tracking-wide text-zinc-500">
+                  <th className="w-8 px-2 py-3" />
                   <th className="px-4 py-3 font-medium">Item</th>
                   <th className="px-4 py-3 font-medium">Profession</th>
                   <SortableTh label="Craft Cost" sortKey="craftCost" active={sortKey} dir={sortDir} onClick={toggleSort} />
@@ -113,45 +117,76 @@ export default function CraftingSniperPage(): React.JSX.Element {
               <tbody>
                 {rows.map((row) => {
                   const illiquid = row.volume === 0
+                  const expanded = expandedRecipeId === row.recipeId
+                  const hasChainedReagent = row.reagents.some((reagent) => reagent.source === 'crafted')
                   return (
-                    <tr
-                      key={row.recipeId}
-                      className={`border-b border-surface-border/60 last:border-0 hover:bg-surface-raised/50 ${rarityBorderClass(row.quality)}`}
-                    >
-                      <td className="px-4 py-3">
-                        <button
-                          type="button"
-                          onClick={() => openItem(row.itemId)}
-                          className={`font-medium hover:underline ${rarityTextClass(row.quality)}`}
-                        >
-                          {row.itemName}
-                        </button>
-                      </td>
-                      <td className="px-4 py-3 text-zinc-400">{row.profession}</td>
-                      <td className={`px-4 py-3 ${illiquid ? 'text-zinc-600' : 'text-zinc-300'}`}>
-                        {row.reagentsAvailable ? formatCopperAsGold(row.craftCost) : 'Missing AH data'}
-                      </td>
-                      <td className={`px-4 py-3 ${illiquid ? 'text-zinc-600' : 'text-zinc-300'}`}>
-                        {formatCopperAsGold(row.salePrice)}
-                      </td>
-                      <td className={`px-4 py-3 font-medium ${profitClass(row.netProfitWithReagentCost, illiquid)}`}>
-                        {row.netProfitWithReagentCost !== null ? formatCopperAsGold(row.netProfitWithReagentCost) : '—'}
-                      </td>
-                      <td className={`px-4 py-3 font-medium ${profitClass(row.netProfitIgnoringReagentCost, illiquid)}`}>
-                        {row.netProfitIgnoringReagentCost !== null
-                          ? formatCopperAsGold(row.netProfitIgnoringReagentCost)
-                          : '—'}
-                      </td>
-                      <td className={`px-4 py-3 font-medium ${profitClass(row.roiPercent, illiquid)}`}>
-                        {row.roiPercent !== null ? `${row.roiPercent}%` : '—'}
-                      </td>
-                      <td
-                        className={`px-4 py-3 ${illiquid ? 'text-profit-negative/70' : 'text-zinc-300'}`}
-                        title={illiquid ? 'No recent sales — treat this price as a low-confidence estimate.' : undefined}
+                    <Fragment key={row.recipeId}>
+                      <tr
+                        className={`border-b border-surface-border/60 last:border-0 hover:bg-surface-raised/50 ${rarityBorderClass(row.quality)}`}
                       >
-                        {row.volume.toLocaleString()}
-                      </td>
-                    </tr>
+                        <td className="px-2 py-3">
+                          {row.reagents.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setExpandedRecipeId(expanded ? null : row.recipeId)}
+                              className="flex h-5 w-5 items-center justify-center rounded text-zinc-500 hover:text-gold"
+                              aria-label={expanded ? 'Hide reagent breakdown' : 'Show reagent breakdown'}
+                            >
+                              {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                            </button>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => openItem(row.itemId)}
+                            className={`font-medium hover:underline ${rarityTextClass(row.quality)}`}
+                          >
+                            {row.itemName}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 text-zinc-400">{row.profession}</td>
+                        <td className={`px-4 py-3 ${illiquid ? 'text-zinc-600' : 'text-zinc-300'}`}>
+                          <span className="flex items-center gap-1.5">
+                            {row.reagentsAvailable ? formatCopperAsGold(row.craftCost) : 'Missing AH data'}
+                            {hasChainedReagent && (
+                              <GitMerge
+                                size={12}
+                                className="text-gold"
+                                aria-label="Cheaper to craft one or more reagents yourself"
+                              />
+                            )}
+                          </span>
+                        </td>
+                        <td className={`px-4 py-3 ${illiquid ? 'text-zinc-600' : 'text-zinc-300'}`}>
+                          {formatCopperAsGold(row.salePrice)}
+                        </td>
+                        <td className={`px-4 py-3 font-medium ${profitClass(row.netProfitWithReagentCost, illiquid)}`}>
+                          {row.netProfitWithReagentCost !== null ? formatCopperAsGold(row.netProfitWithReagentCost) : '—'}
+                        </td>
+                        <td className={`px-4 py-3 font-medium ${profitClass(row.netProfitIgnoringReagentCost, illiquid)}`}>
+                          {row.netProfitIgnoringReagentCost !== null
+                            ? formatCopperAsGold(row.netProfitIgnoringReagentCost)
+                            : '—'}
+                        </td>
+                        <td className={`px-4 py-3 font-medium ${profitClass(row.roiPercent, illiquid)}`}>
+                          {row.roiPercent !== null ? `${row.roiPercent}%` : '—'}
+                        </td>
+                        <td
+                          className={`px-4 py-3 ${illiquid ? 'text-profit-negative/70' : 'text-zinc-300'}`}
+                          title={illiquid ? 'No recent sales — treat this price as a low-confidence estimate.' : undefined}
+                        >
+                          {row.volume.toLocaleString()}
+                        </td>
+                      </tr>
+                      {expanded && (
+                        <tr className="border-b border-surface-border/60 bg-surface-panel/40 last:border-0">
+                          <td colSpan={TABLE_COLUMN_COUNT} className="px-4 py-3">
+                            <ReagentBreakdown reagents={row.reagents} onOpenItem={openItem} />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   )
                 })}
               </tbody>
@@ -162,6 +197,41 @@ export default function CraftingSniperPage(): React.JSX.Element {
 
       {itemDetailModal}
     </div>
+  )
+}
+
+function ReagentBreakdown({
+  reagents,
+  onOpenItem
+}: {
+  reagents: CraftingSnipeRow['reagents']
+  onOpenItem: (itemId: number) => void
+}): React.JSX.Element {
+  return (
+    <ul className="grid grid-cols-1 gap-x-6 gap-y-1.5 text-xs sm:grid-cols-2 lg:grid-cols-3">
+      {reagents.map((reagent) => (
+        <li key={reagent.itemId} className="flex items-center justify-between gap-2 text-zinc-400">
+          <button type="button" onClick={() => onOpenItem(reagent.itemId)} className="truncate hover:text-gold hover:underline">
+            {reagent.quantity}× {reagent.itemName}
+          </button>
+          <span className="flex shrink-0 items-center gap-1.5">
+            {reagent.unitCost !== null ? (
+              <span className="text-zinc-300">{formatCopperAsGold(reagent.unitCost)} ea</span>
+            ) : (
+              <span className="text-profit-negative">no price</span>
+            )}
+            {reagent.source === 'crafted' && (
+              <span
+                className="rounded-full bg-gold/10 px-1.5 py-0.5 text-[10px] text-gold"
+                title={reagent.craftedViaRecipeName ? `Crafted via ${reagent.craftedViaRecipeName}` : 'Crafted'}
+              >
+                crafted
+              </span>
+            )}
+          </span>
+        </li>
+      ))}
+    </ul>
   )
 }
 

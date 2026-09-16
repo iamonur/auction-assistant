@@ -117,6 +117,25 @@ export interface LevelingPlanResult {
   hasGaps: boolean
 }
 
+/**
+ * How one reagent line of a recipe is cheapest to source, right now —
+ * see main/queries/crafting.ts#resolveCheapestCost. A reagent that's
+ * itself the result of some other recipe is priced both ways (buy it on
+ * the AH, or craft it from its own cheapest reagents, recursively) and
+ * the cheaper one wins, the same choice a real player would make (e.g. a
+ * weapon needing bars, where the bars are themselves smelted from ore).
+ */
+export interface CraftingReagentSourcing {
+  itemId: number
+  itemName: string
+  quantity: number
+  /** Cheapest per-unit cost found for this reagent — null when there's no AH/vendor price and no craftable alternative either. */
+  unitCost: number | null
+  source: 'buy' | 'crafted' | 'unavailable'
+  /** Set only when source is 'crafted' — which recipe produces it at that cost, so the UI can explain the number rather than just showing it. */
+  craftedViaRecipeName: string | null
+}
+
 export interface CraftingSnipeRow {
   recipeId: number
   itemId: number
@@ -132,6 +151,8 @@ export interface CraftingSnipeRow {
   roiPercent: number | null
   /** Listed volume for the *sale* item, from the active pricing source (0 for TSM region-wide data means no recent sales — treat its price/profit as a low-confidence estimate, not an observed price). */
   volume: number
+  /** Per-reagent sourcing breakdown backing craftCost — see CraftingReagentSourcing. */
+  reagents: CraftingReagentSourcing[]
 }
 
 /** Row for the Battle Pet Farming tab — TSM pets.csv only, no Battle.net equivalent (see main/tsm/sync.ts). */
