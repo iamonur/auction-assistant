@@ -103,6 +103,8 @@ export interface LevelingPlanStep {
   netCostPerCraft: number | null
   /** netCostPerCraft x craftsNeeded — null when netCostPerCraft is null. */
   subtotal: number | null
+  /** Per-reagent sourcing breakdown backing reagentCost — see CraftingReagentSourcing. Empty for the "no recipe available" gap step. */
+  reagents: CraftingReagentSourcing[]
 }
 
 export interface LevelingPlanResult {
@@ -119,11 +121,12 @@ export interface LevelingPlanResult {
 
 /**
  * How one reagent line of a recipe is cheapest to source, right now —
- * see main/queries/crafting.ts#resolveCheapestCost. A reagent that's
- * itself the result of some other recipe is priced both ways (buy it on
- * the AH, or craft it from its own cheapest reagents, recursively) and
- * the cheaper one wins, the same choice a real player would make (e.g. a
- * weapon needing bars, where the bars are themselves smelted from ore).
+ * see main/queries/reagentCost.ts. A reagent that's itself the result of
+ * some other recipe is priced both ways (buy it on the AH, or craft it
+ * from its own cheapest reagents, recursively) and the cheaper one wins,
+ * the same choice a real player would make (e.g. a weapon needing bars,
+ * where the bars are themselves smelted from ore). Shared by Crafting
+ * Sniper (CraftingSnipeRow) and the Leveling Planner (LevelingPlanStep).
  */
 export interface CraftingReagentSourcing {
   itemId: number
