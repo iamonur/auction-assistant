@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3'
 import type { AppSettings, CraftingSnipeRow, ItemQuality, Profession } from '@shared/types'
-import { AH_CUT_RATE, getCheapestPriceMap, getSupplyVolumeMap } from './shared'
+import { AH_CUT_RATE, getSupplyVolumeMap } from './shared'
+import { createReagentCostResolver } from './reagentCost'
 
 interface RecipeRow {
   id: number
@@ -15,6 +16,7 @@ interface RecipeRow {
 interface ReagentRow {
   recipeId: number
   itemId: number
+  itemName: string
   quantity: number
   vendorPrice: number | null
 }
@@ -31,10 +33,10 @@ export function listCraftingSnipeRows(db: Database.Database, settings: AppSettin
     )
     .all() as RecipeRow[]
 
-  const reagents = db
+  const reagentRows = db
     .prepare(
       /* sql */ `
-      SELECT rr.recipe_id as recipeId, rr.item_id as itemId, rr.quantity as quantity, i.vendor_price as vendorPrice
+      SELECT rr.recipe_id as recipeId, rr.item_id as itemId, i.name as itemName, rr.quantity as quantity, i.vendor_price as vendorPrice
       FROM recipe_reagents rr
       JOIN items i ON i.id = rr.item_id
     `
@@ -42,30 +44,25 @@ export function listCraftingSnipeRows(db: Database.Database, settings: AppSettin
     .all() as ReagentRow[]
 
   const reagentsByRecipe = new Map<number, ReagentRow[]>()
-  for (const reagent of reagents) {
+  for (const reagent of reagentRows) {
     const list = reagentsByRecipe.get(reagent.recipeId) ?? []
     list.push(reagent)
     reagentsByRecipe.set(reagent.recipeId, list)
   }
 
-  const priceMap = getCheapestPriceMap(db, settings)
   const volumeMap = getSupplyVolumeMap(db, settings)
+  // Also chains into any reagent that's itself craftable (e.g. a weapon
+  // needing bars, where the bars are themselves smelted from ore) —
+  // see main/queries/reagentCost.ts.
+  const resolver = createReagentCostResolver(db, settings)
 
   return recipes.map((recipe) => {
     const recipeReagents = reagentsByRecipe.get(recipe.id) ?? []
-    let reagentsAvailable = recipeReagents.length > 0
-    let craftCost = 0
+    const { reagents: reagentSourcing, totalCost } = resolver.priceReagents(recipeReagents)
+    const reagentsAvailable = totalCost !== null
+    const craftCost = totalCost ?? 0
 
-    for (const reagent of recipeReagents) {
-      const price = priceMap.get(reagent.itemId) ?? reagent.vendorPrice
-      if (price === null || price === undefined) {
-        reagentsAvailable = false
-        continue
-      }
-      craftCost += price * reagent.quantity
-    }
-
-    const rawSalePrice = priceMap.get(recipe.resultItemId) ?? null
+    const rawSalePrice = resolver.priceMap.get(recipe.resultItemId) ?? null
     const salePrice = rawSalePrice === null ? null : Math.round(rawSalePrice * (1 - AH_CUT_RATE))
 
     const netProfitWithReagentCost =
@@ -89,7 +86,8 @@ export function listCraftingSnipeRows(db: Database.Database, settings: AppSettin
       netProfitWithReagentCost,
       netProfitIgnoringReagentCost,
       roiPercent,
-      volume: volumeMap.get(recipe.resultItemId) ?? 0
+      volume: volumeMap.get(recipe.resultItemId) ?? 0,
+      reagents: reagentSourcing
     } satisfies CraftingSnipeRow
   })
 }

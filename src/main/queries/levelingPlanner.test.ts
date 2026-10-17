@@ -109,6 +109,27 @@ describe('getLevelingPlan', () => {
     expect(plan.steps[0].netCostPerCraft).toBe(10)
   })
 
+  // Same reagent chaining as Crafting Sniper (main/queries/reagentCost.ts,
+  // shared by both) — a reagent that's itself a recipe's result should be
+  // priced at whichever is cheaper, buying or crafting it.
+  it('prices a reagent that is itself craftable at whichever is cheaper — buying or crafting', () => {
+    insertItem(db, 100, 'Copper Ore')
+    insertItem(db, 101, 'Copper Bar')
+    insertItem(db, 200, 'Copper Sword')
+    insertPrice(db, 100, 10, 20) // 2 ore -> 1 bar costs 20 to craft
+    insertPrice(db, 101, 50, 5) // buying a bar outright costs 50
+    db.prepare(`INSERT INTO recipes (id, profession, name, result_item_id) VALUES (99, 'Blacksmithing', 'Smelt Copper', 101)`).run()
+    db.prepare(`INSERT INTO recipe_reagents (recipe_id, item_id, quantity) VALUES (99, 100, 2)`).run()
+    insertRecipe(db, 1, 'Recipe', 200, 1, [{ itemId: 101, quantity: 1 }])
+
+    const plan = getLevelingPlan(db, testSettings({ region: REGION, realmName: REALM }), 'Alchemy', 1, 2, false)
+
+    expect(plan.steps[0].reagentCost).toBe(20)
+    expect(plan.steps[0].reagents).toEqual([
+      { itemId: 101, itemName: 'Copper Bar', quantity: 1, unitCost: 20, source: 'crafted', craftedViaRecipeName: 'Smelt Copper' }
+    ])
+  })
+
   it('flags a step as a gap when a reagent has no known price, and excludes it from the total', () => {
     insertItem(db, 100, 'Unpriced Reagent')
     insertItem(db, 200, 'Potion')
